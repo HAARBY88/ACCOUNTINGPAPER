@@ -1,0 +1,46 @@
+﻿<form name="ai-prompt-form" method="POST" data-netlify="true">
+  <input type="text" name="topic" placeholder="Topic" required>
+  <textarea name="goal" placeholder="Your Goal"></textarea>
+  <button type="submit">Submit</button>
+</form>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Prompt Helper</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+  <div class="max-w-3xl mx-auto py-8 px-4">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">AI Prompt Helper</h1>
+    <p class="text-gray-600 mb-6">Build better prompts by giving clear context, goals, and format.</p>
+
+    <!-- Step 1: Topic -->
+    <div class="mb-6">
+      <label class="block text-lg font-medium text-gray-700">1. Topic or Subject Area</label>
+      <input id="topic" type="text" placeholder="Example: Climate change, Modern art, Small business marketing" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+    </div>
+
+    <!-- Step 2: Goal -->
+    <div class="mb-6">
+      <label class="block text-lg font-medium text-gray-700">2. Your Goal</label>
+      <textarea id="goal" rows="2" placeholder="Example: Write an engaging LinkedIn post, Explain the concept to a 10-year-old, Create a step-by-step guide" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+    </div>
+
+    <!-- Step 3: Details / Context -->
+    <div class="mb-6">
+      <label class="block text-lg font-medium text-gray-700">3. Key Details / Context</label>
+      <textarea id="details" rows="3" placeholder="Example: Target audience is small business owners, tone should be friendly, limit to 300 words" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+    </div>
+
+    <!-- Step 4: Output Format -->
+    <div class="mb-6">
+      <label class="block text-lg font-medium text-gray-700">4. Output Format</label>
+      <select id="format" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        <option value="">Select a format...</option>
+        <option>List</option>
+        <option>Step-by-step guide</option>
+        <option>Short summary</option>
+        <option>Essay</option>
+        <option>Script / Dialogue</option>
