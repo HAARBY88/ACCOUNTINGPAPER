@@ -1,125 +1,80 @@
-financial-ai-site/
-│   index.html              ← Frontend webpage
-│   netlify.toml            ← Netlify config (to run functions)
-│
-└── netlify/
-    └── functions/
-        processUpload.js    ← Backend AI + file parsing
+<h2>Companies House Search</h2>
+<div id="companies-house-tab">
+  <input type="text" id="companySearch" placeholder="Enter company name">
+  <button onclick="searchCompany()">Search</button>
 
-[build]
-  functions = "netlify/functions"
-  publish = "."
+  <div id="companyResults"></div>
+  <div id="filingResults"></div>
 
-[dev]
-  functions = "netlify/functions"
+  <h3>Filters</h3>
+  Start Date: <input type="date" id="filterStart"><br>
+  End Date: <input type="date" id="filterEnd"><br>
+  Document Types:
+  <select id="filterTypes" multiple>
+    <option value="AA">Annual Accounts</option>
+    <option value="CS">Confirmation Statement</option>
+    <option value="AR">Annual Return</option>
+  </select><br>
+  <button onclick="analyseSelected()">Analyse Selected</button>
+</div>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>AI Financial Statement Analysis</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 700px; margin: auto; padding: 20px; }
-    h1 { color: #333; }
-    form { margin-bottom: 20px; }
-    pre { background: #f4f4f4; padding: 15px; white-space: pre-wrap; }
-  </style>
-</head>
-<body>
-  <h1>Upload Financial Statements for AI Analysis</h1>
-  
-  <form id="uploadForm">
-    <label>Financial Statement (PDF/Excel/Word):
-      <input type="file" name="statement" accept=".pdf,.xlsx,.xls,.docx" required>
-    </label>
-    <br><br>
-    <label>Accounting Framework:
-      <select name="framework" required>
-        <option value="IFRS">IFRS</option>
-        <option value="US GAAP">US GAAP</option>
-      </select>
-    </label>
-    <br><br>
-    <label>Analysis Topic:
-      <input type="text" name="topic" placeholder="e.g. Revenue Recognition" required>
-    </label>
-    <br><br>
-    <button type="submit">Upload & Analyse</button>
-  </form>
+<script>
+let selectedFilings = [];
 
-  <h2>AI Output</h2>
-  <pre id="output">Your analysis will appear here...</pre>
+async function searchCompany() {
+  const q = document.getElementById("companySearch").value;
+  const res = await fetch(`/.netlify/functions/searchCompany?q=${encodeURIComponent(q)}`);
+  const data = await res.json();
 
-  <script>
-    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
+  const resultsDiv = document.getElementById("companyResults");
+  resultsDiv.innerHTML = "";
+  data.items.forEach(company => {
+    resultsDiv.innerHTML += `
+      <div>
+        <strong>${company.title}</strong> (${company.company_number})
+        <button onclick="loadFilings('${company.company_number}')">View Filings</button>
+      </div>`;
+  });
+}
 
-      document.getElementById("output").textContent = "Processing...";
+async function loadFilings(companyNumber) {
+  const res = await fetch(`/.netlify/functions/filingHistory/${companyNumber}`);
+  const data = await res.json();
+  const filingsDiv = document.getElementById("filingResults");
+  filingsDiv.innerHTML = "";
 
-      const res = await fetch("/.netlify/functions/processUpload", {
-        method: "POST",
-        body: formData
-      });
+  data.items.forEach(filing => {
+    filingsDiv.innerHTML += `
+      <div>
+        <input type="checkbox" onchange="toggleFiling('${filing.transaction_id}', '${filing.type}', '${filing.date}')">
+        ${filing.description || "No description"} (${filing.date})
+      </div>`;
+  });
+}
 
-      const data = await res.json();
-      document.getElementById("output").textContent = data.output || "Error processing file.";
-    });
-  </script>
-</body>
-</html>
-
-import OpenAI from "openai";
-import multiparty from "multiparty";
-import fs from "fs";
-import pdfParse from "pdf-parse";
-
-export const config = {
-  api: { bodyParser: false } // Disable default parsing for file uploads
-};
-
-export async function handler(event) {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
-  }
-
-  try {
-    const form = new multiparty.Form();
-    const formData = await new Promise((resolve, reject) => {
-      form.parse(event, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve({ fields, files });
-      });
-    });
-
-    const filePath = formData.files.statement[0].path;
-    const fileData = fs.readFileSync(filePath);
-
-    // For now, only PDF parsing
-    const pdfText = await pdfParse(fileData);
-    const extractedText = pdfText.text;
-
-    const framework = formData.fields.framework[0];
-    const topic = formData.fields.topic[0];
-
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: `You are an expert in ${framework} accounting.` },
-        { role: "user", content: `Analyse the following financial data and explain ${topic}:\n${extractedText}` }
-      ]
-    });
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ output: response.choices[0].message.content })
-    };
-
-  } catch (err) {
-    console.error("Error:", err);
-    return { statusCode: 500, body: JSON.stringify({ error: "Processing failed." }) };
+function toggleFiling(documentId, type, date) {
+  const index = selectedFilings.findIndex(f => f.documentId === documentId);
+  if (index >= 0) {
+    selectedFilings.splice(index, 1);
+  } else {
+    selectedFilings.push({ documentId, type, date });
   }
 }
 
+async function analyseSelected() {
+  const filters = {
+    startDate: document.getElementById("filterStart").value,
+    endDate: document.getElementById("filterEnd").value,
+    types: Array.from(document.getElementById("filterTypes").selectedOptions).map(o => o.value)
+  };
+
+  const res = await fetch(`/.netlify/functions/analyseFilings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filings: selectedFilings, filters })
+  });
+
+  const data = await res.json();
+  console.log("AI Draft Output:", data.result);
+}
+</script>
